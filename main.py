@@ -30,7 +30,7 @@ class CookieClickerPlayer:
                     id: p.id,
                     name: p.name,
                     amount: p.amount,
-                    cps: p.cps(p),
+                    cps: p.amount === 0 ? p.storedCps * Game.globalCpsMult : (p.storedTotalCps/p.amount) * Game.globalCpsMult,
                     bulkPrice: p.bulkPrice,
                 }
             ))
@@ -43,7 +43,7 @@ class CookieClickerPlayer:
     def rank(self):
         self.update_products()
         for p in self.products:
-            print(f"{p['name']} : {round(p['cost_perf'] * 10 ** 8, 2)} / Billion")
+            print(f"{p['name']} : {round(p['cost_perf'] * 10 ** 9, 2)} / Billion")
     
     def rank3(self):
         self.update_products()
@@ -51,7 +51,7 @@ class CookieClickerPlayer:
         cnt = 0
         for i in range(3):
             p = self.products[i]
-            print(f"{i}: {p['name']} : {round(p['cost_perf'] * 10 ** 8, 2)} / Billion")
+            print(f"{i}: {p['name']} : {round(p['cost_perf'] * 10 ** 9, 2)} / Billion")
 
 
     def auto(self, saving=True):
@@ -63,7 +63,7 @@ class CookieClickerPlayer:
         for i in range(10):
             
             self.update_products()
-            self.print_products_best3()
+            self.rank3()
 
             # Golden Cookie
             self.click_shimmers_if_exist()
