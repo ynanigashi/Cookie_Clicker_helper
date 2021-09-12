@@ -91,6 +91,30 @@ class CookieClickerPlayer:
             p = self.products[i]
             print(f"{i}:", p['name'],  f"{ '{:,.2f}'.format(p['cost_perf'] * 10 ** 9)} / Billion", sep='\t')
 
+    def show_cps(self):
+        units = [
+            (1000000000000000000000,'sextillion'),
+            (1000000000000000000, 'quintillion'),
+            (1000000000000000, 'quadrillion'),
+            (1000000000000,'trillion'),
+            (1000000000, 'billion'),
+            (1000000,'million'),
+            (1000,'thousand'),
+             ]
+        self.update_products()
+        self.products.sort(key=lambda x: x['id'])
+        for p in self.products:
+            cps = p['cps']
+            for number, unit_name in units:
+                if cps // number > 0:
+                    p['cps'] = f"{'{:,.2f}'.format(cps/number)} {unit_name}"
+                    break
+            else:
+                p['cps'] = f"{int(cps)}"
+                
+        for p in self.products:
+            print(f"{p['name']}:", f"{p['cps']}", sep='\t')
+
 
     def auto(self, saving=True):
         # get elements
