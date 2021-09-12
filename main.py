@@ -7,7 +7,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import ElementNotInteractableException
-
+from selenium.common.exceptions import StaleElementReferenceException
 class CookieClickerPlayer:
     def __init__(self):
         driver = webdriver.Chrome()
@@ -104,22 +104,35 @@ class CookieClickerPlayer:
         return n / (after - before)
 
     def click_while(self, n):
-        cps = int(self.click_cps)
-        total, cnt = cps * n, n
-        for i in range(total):
-            current_cnt = (total - i) // cps
-            if not cnt ==  current_cnt:
-                cnt = current_cnt
-                if cnt <= 10:
-                    print(f"Remain Time is {cnt} sec.")
-                elif cnt <= 60 and cnt % 10 == 0:
-                    print(f"Remain Time is {cnt} sec.")
-                elif cnt % 30 == 0:
-                    print(f"Remain Time is {round(cnt / 60, 2)} min.")
+        end_time = time.perf_counter() + n
 
+        while True:
+            remain_seconds = int(end_time - time.perf_counter())
+            hour, mod_seconds = divmod(remain_seconds, 60 * 60)
+            minu, sec = divmod(mod_seconds, 60)
+            if hour > 0:
+                print(f"\rRemain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min.", end='')
+            elif minu > 0:
+                print(f"\rRemain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.", end='')
+            else:
+                print(f"\rRemain Time is {str(sec).zfill(2)} sec.", end='')
+
+            #click big cookies
             self.cookie.click()
+            
             # Golden Cookie
             self.click_shimmers_if_exist()
+            
+            if remain_seconds <= 0:
+                hour, mod_seconds = divmod(n, 60 * 60)
+                minu, sec = divmod(mod_seconds, 60)
+                if hour > 0:
+                    print(f"\rcomplete click {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
+                elif minu > 0:
+                    print(f"\rcomplete click {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
+                else:
+                    print(f"\rcomplete click {str(sec).zfill(2)} sec.")                    
+                break
     
     def update_clickcps(self):
         self.click_cps = self.bulk_click(100)
@@ -129,10 +142,12 @@ class CookieClickerPlayer:
         for shimmer in shimmers:
             try:
                 shimmer.click()
-                print("Golden Cookie was clicked!!")
+                print(": Golden Cookie was clicked!!")
             except ElementClickInterceptedException as e:
                 print(e)
             except ElementNotInteractableException as e:
+                print(e)
+            except StaleElementReferenceException as e:
                 print(e)
 
 def test():
