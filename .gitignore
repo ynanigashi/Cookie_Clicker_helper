@@ -1,3 +1,4 @@
 *.exe
 .venv
 __pycache__
+Cookie_Clicker_Save_*.txt

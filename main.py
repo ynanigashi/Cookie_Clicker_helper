@@ -1,4 +1,5 @@
 import time
+from datetime import datetime as dt
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -28,22 +29,34 @@ class CookieClickerPlayer:
         self.driver.execute_script('document.getElementById("smallSupport").remove()')
 
         # accept cookie
+        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[1]/div/a[1]')))
+        time.sleep(1)
         self.driver.find_element(By.XPATH, '/html/body/div[1]/div/a[1]').click()
 
         #load save data
         if save_data:
-            self.load_save_from_clip_board()
+            self.load_from_clip_board()
 
 
-    def load_save_from_clip_board(self):
-        print('load_save')
+    def load_from_clip_board(self):
         save_data = pyperclip.paste()
         if save_data == "":
             print("There's no clipboad data")
             return
         self.driver.execute_script(f'Game.ImportSaveCode("{save_data}")')
 
-        
+
+    def save_to_clip_board(self):
+        self.save_data = self.driver.execute_script("return Game.WriteSave(1)")
+        pyperclip.copy(self.save_data)
+
+
+    def save_to_file(self):
+        now = dt.now()
+        file_name = f'Cookie_Clicker_Save_{now.strftime("%Y%m%d%H%M%S") }.txt'
+        self.save_data = self.driver.execute_script("return Game.WriteSave(1)")
+        with open(file_name, mode='w') as f:
+            f.write(self.save_data)
 
 
     def update_products(self):
@@ -62,12 +75,14 @@ class CookieClickerPlayer:
             p['cost_perf'] = p['cps'] / p['bulkPrice']
         products.sort(key=lambda x: x['cost_perf'], reverse=True)
         self.products = products
-    
+
+
     def rank(self):
         self.update_products()
         for p in self.products:
             print(f"{p['name']}:", f"{ '{:,.2f}'.format(p['cost_perf'] * 10 ** 9)} / Billion", sep='\t')
-    
+
+
     def rank3(self):
         self.update_products()
         print('>>>> Best 3 <<<<<')
@@ -113,11 +128,13 @@ class CookieClickerPlayer:
             else:
                 self.click_cps = self.bulk_click(100)
 
+
     def get_cookie_amount(self):
             cookies = self.driver.execute_script("""
             return Game.cookies
             """)
             return cookies
+
 
     def bulk_click(self, n):
         before = time.perf_counter()
@@ -125,6 +142,7 @@ class CookieClickerPlayer:
             self.cookie.click()
         after = time.perf_counter()
         return n / (after - before)
+
 
     def click_while(self, n):
         end_time = time.perf_counter() + n
@@ -156,9 +174,11 @@ class CookieClickerPlayer:
                 else:
                     print(f"\rcomplete click {str(sec).zfill(2)} sec.        ")                    
                 break
-    
+
+
     def update_clickcps(self):
         self.click_cps = self.bulk_click(100)
+
 
     def click_shimmers_if_exist(self):
         shimmers = self.driver.find_elements(By.CSS_SELECTOR, '#shimmers > .shimmer')
@@ -172,6 +192,7 @@ class CookieClickerPlayer:
                 print(e)
             except StaleElementReferenceException as e:
                 print(e)
+
 
 def test():
     player = CookieClickerPlayer()
