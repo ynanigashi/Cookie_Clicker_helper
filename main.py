@@ -1,4 +1,3 @@
-from itertools import product
 import time
 
 from selenium import webdriver
@@ -8,19 +7,43 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import ElementNotInteractableException
 from selenium.common.exceptions import StaleElementReferenceException
+import pyperclip
+
+
 class CookieClickerPlayer:
-    def __init__(self):
+    def __init__(self, save_data=False):
         driver = webdriver.Chrome()
         driver.get('https://orteil.dashnet.org/cookieclicker/')
         self.driver = driver
+        self.products = []
         
         # wait for big cookie load.
         WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.ID, 'bigCookie')))
         self.cookie = self.driver.find_element(By.ID, 'bigCookie')
-        self.products = []
-        
+
         # update click cps
         self.update_clickcps()
+        
+        # hide ad
+        self.driver.execute_script('document.getElementById("smallSupport").remove()')
+
+        # accept cookie
+        self.driver.find_element(By.XPATH, '/html/body/div[1]/div/a[1]').click()
+
+        #load save data
+        if save_data:
+            self.load_save_from_clip_board()
+
+
+    def load_save_from_clip_board(self):
+        print('load_save')
+        save_data = pyperclip.paste()
+        if save_data == "":
+            print("There's no clipboad data")
+            return
+        self.driver.execute_script(f'Game.ImportSaveCode("{save_data}")')
+
+        
 
 
     def update_products(self):
@@ -43,7 +66,7 @@ class CookieClickerPlayer:
     def rank(self):
         self.update_products()
         for p in self.products:
-            print(f"{p['name']} : {round(p['cost_perf'] * 10 ** 9, 2)} / Billion")
+            print(f"{p['name']}:", f"{ '{:,.2f}'.format(p['cost_perf'] * 10 ** 9)} / Billion", sep='\t')
     
     def rank3(self):
         self.update_products()
@@ -51,7 +74,7 @@ class CookieClickerPlayer:
         cnt = 0
         for i in range(3):
             p = self.products[i]
-            print(f"{i}: {p['name']} : {round(p['cost_perf'] * 10 ** 9, 2)} / Billion")
+            print(f"{i}:", p['name'],  f"{ '{:,.2f}'.format(p['cost_perf'] * 10 ** 9)} / Billion", sep='\t')
 
 
     def auto(self, saving=True):
@@ -115,7 +138,7 @@ class CookieClickerPlayer:
             elif minu > 0:
                 print(f"\rRemain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.", end='')
             else:
-                print(f"\rRemain Time is {str(sec).zfill(2)} sec.", end='')
+                print(f"\rRemain Time is {str(sec).zfill(2)} sec.          ", end='')
 
             #click big cookies
             self.cookie.click()
@@ -131,7 +154,7 @@ class CookieClickerPlayer:
                 elif minu > 0:
                     print(f"\rcomplete click {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
                 else:
-                    print(f"\rcomplete click {str(sec).zfill(2)} sec.")                    
+                    print(f"\rcomplete click {str(sec).zfill(2)} sec.        ")                    
                 break
     
     def update_clickcps(self):
