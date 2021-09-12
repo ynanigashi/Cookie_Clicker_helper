@@ -159,7 +159,10 @@ class CookieClickerPlayer:
                 print(f"\rRemain Time is {str(sec).zfill(2)} sec.          ", end='')
 
             #click big cookies
-            self.cookie.click()
+            try:
+                self.cookie.click()
+            except ElementClickInterceptedException as e:
+                print(e)
             
             # Golden Cookie
             self.click_shimmers_if_exist()
