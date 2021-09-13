@@ -170,38 +170,40 @@ class CookieClickerPlayer:
 
     def click_while(self, n):
         end_time = time.perf_counter() + n
-
-        while True:
-            remain_seconds = int(end_time - time.perf_counter())
-            hour, mod_seconds = divmod(remain_seconds, 60 * 60)
-            minu, sec = divmod(mod_seconds, 60)
-            if hour > 0:
-                print(f"\rRemain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min.", end='')
-            elif minu > 0:
-                print(f"\rRemain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.", end='')
-            else:
-                print(f"\rRemain Time is {str(sec).zfill(2)} sec.          ", end='')
-
-            #click big cookies
-            try:
-                self.cookie.click()
-            except ElementClickInterceptedException as e:
-                print(e)
-            
-            # Golden Cookie
-            self.click_shimmers_if_exist()
-            
-            if remain_seconds <= 0:
-                hour, mod_seconds = divmod(n, 60 * 60)
+        try:
+            while True:
+                remain_seconds = int(end_time - time.perf_counter())
+                hour, mod_seconds = divmod(remain_seconds, 60 * 60)
                 minu, sec = divmod(mod_seconds, 60)
                 if hour > 0:
-                    print(f"\rcomplete click {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
+                    print(f"\rRemain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min.", end='')
                 elif minu > 0:
-                    print(f"\rcomplete click {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
+                    print(f"\rRemain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.", end='')
                 else:
-                    print(f"\rcomplete click {str(sec).zfill(2)} sec.        ")                    
-                break
+                    print(f"\rRemain Time is {str(sec).zfill(2)} sec.          ", end='')
 
+                #click big cookies
+                try:
+                    self.cookie.click()
+                except ElementClickInterceptedException as e:
+                    print(e)
+                
+                # Golden Cookie
+                self.click_shimmers_if_exist()
+                
+                if remain_seconds <= 0:
+                    hour, mod_seconds = divmod(n, 60 * 60)
+                    minu, sec = divmod(mod_seconds, 60)
+                    if hour > 0:
+                        print(f"\rcomplete click {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
+                    elif minu > 0:
+                        print(f"\rcomplete click {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
+                    else:
+                        print(f"\rcomplete click {str(sec).zfill(2)} sec.        ")                    
+                    break
+        except KeyboardInterrupt:
+            self.save_to_file()
+            print('[ctrl + C] has pushed. save data to file!')
 
     def update_clickcps(self):
         self.click_cps = self.bulk_click(100)
