@@ -116,41 +116,70 @@ class CookieClickerPlayer:
             print(f"{p['name']}:", f"{p['cps']}", sep='\t')
 
 
-    def auto(self, saving=True):
+    def auto(self, seconds):
         # get elements
-
-        # start
         self.click_cps = self.bulk_click(100)
-        # loop
-        for i in range(10):
-            
-            self.update_products()
-            self.rank3()
-
-            # Golden Cookie
-            self.click_shimmers_if_exist()
-
-            # 今現在のクッキー
-            cookies = self.get_cookie_amount()
-
-            if saving:
+        end_time = time.perf_counter() + seconds
+        try:
+            while True:
+                # get cookie per click
+                mouse_cpc = self.driver.execute_script(' return Game.computedMouseCps')
+                # get current cookie amount
+                cookie_amount = self.get_cookie_amount()
+                # get current products
+                self.update_products()
                 product = self.products[0]
-                if cookies >= product['bulkPrice']:
-                    #買う処理
-                    self.driver.find_element(By.ID, f"product{product['id']}").click()
-            else:
-                # 買える奴を買う
-                for product in self.products:
-                    if cookies >= product['bulkPrice']:
-                        #買う処理
+                price = product['bulkPrice']
+
+                if cookie_amount < price:
+                    while True:
+                        remain_seconds = int(end_time - time.perf_counter())
+                        hour, mod_seconds = divmod(remain_seconds, 60 * 60)
+                        minu, sec = divmod(mod_seconds, 60)
+                        if hour > 0:
+                            print(f"\rAuto remain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min.", end='')
+                        elif minu > 0:
+                            print(f"\rAuto remain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.", end='')
+                        else:
+                            print(f"\rAuto remain Time is {str(sec).zfill(2)} sec.          ", end='')
+
+                        #click big cookies
+                        try:
+                            self.cookie.click()
+                        except ElementClickInterceptedException as e:
+                            print(e)
+
+                        #Check Golden Cookie
+                        self.click_shimmers_if_exist()
+
+                        # get current cookie amount
+                        cookie_amount = self.get_cookie_amount()
+
+                        #check can buy and remain_seconds
+                        if cookie_amount >= price or remain_seconds <= 0:
+                            break
+                else:
+                    # buy product
+                    try:
                         self.driver.find_element(By.ID, f"product{product['id']}").click()
-                        break
-            # 次に買いたいやつ
-            # クリックしたらどのくらいかかるか
-            if False:
-                pass
-            else:
-                self.click_cps = self.bulk_click(100)
+                        print(f"bought {product['name']}")
+                    except ElementClickInterceptedException as e:
+                        print(e)
+                # check duration
+                if end_time - time.perf_counter() <= 0:
+                    hour, mod_seconds = divmod(seconds, 60 * 60)
+                    minu, sec = divmod(mod_seconds, 60)
+                    if hour > 0:
+                        print(f"\rcomplete auto {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
+                    elif minu > 0:
+                        print(f"\rcomplete auto {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
+                    else:
+                        print(f"\rcomplete auto {str(sec).zfill(2)} sec.        ")                    
+                    break
+
+        except KeyboardInterrupt:
+            self.save_to_file()
+            print('[ctrl + C] has pushed. save data to file!')
 
 
     def get_cookie_amount(self):
@@ -176,11 +205,11 @@ class CookieClickerPlayer:
                 hour, mod_seconds = divmod(remain_seconds, 60 * 60)
                 minu, sec = divmod(mod_seconds, 60)
                 if hour > 0:
-                    print(f"\rRemain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min.", end='')
+                    print(f"\rClick Remain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min.", end='')
                 elif minu > 0:
-                    print(f"\rRemain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.", end='')
+                    print(f"\rClick Remain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.", end='')
                 else:
-                    print(f"\rRemain Time is {str(sec).zfill(2)} sec.          ", end='')
+                    print(f"\rClick Remain Time is {str(sec).zfill(2)} sec.          ", end='')
 
                 #click big cookies
                 try:
@@ -190,6 +219,9 @@ class CookieClickerPlayer:
                 
                 # Golden Cookie
                 self.click_shimmers_if_exist()
+
+                # cast conjer baked cookies if mp max
+                self.cast_spell_if_mp_max()
                 
                 if remain_seconds <= 0:
                     hour, mod_seconds = divmod(n, 60 * 60)
@@ -222,6 +254,19 @@ class CookieClickerPlayer:
             except StaleElementReferenceException as e:
                 print(e)
 
+    def cast_spell_if_mp_max(self):
+        grimoire = self.driver.execute_script('return Game.ObjectsById[7].minigameLoaded')
+
+        if grimoire:
+            # get max mp
+            max_mp = self.driver.execute_script('return Game.ObjectsById[7].minigame.magicM')
+            mp = self.driver.execute_script('return Game.ObjectsById[7].minigame.magic')
+
+            if max_mp != 0 and max_mp == mp:
+                self.driver.execute_script("""
+                let M = Game.ObjectsById[7].minigame;
+                M.castSpell(M.spellsById[0]);
+                """)
 
 def test():
     player = CookieClickerPlayer()
