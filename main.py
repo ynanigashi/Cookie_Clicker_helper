@@ -154,8 +154,8 @@ class CookieClickerPlayer:
                         #Check Golden Cookie
                         self.click_shimmers_if_exist()
 
-                        # get current cookie amount
-                        cookie_amount = self.get_cookie_amount()
+                        # cast conjer baked cookies if mp max
+                        self.cast_spell_if_mp_max()
 
                         #check past time from last is_buffed()
                         if time.perf_counter() - check_point >= 20:
@@ -181,6 +181,9 @@ class CookieClickerPlayer:
 
                         #Check Golden Cookie
                         self.click_shimmers_if_exist()
+
+                        # cast conjer baked cookies if mp max
+                        self.cast_spell_if_mp_max()
 
                         # get current cookie amount
                         cookie_amount = self.get_cookie_amount()
