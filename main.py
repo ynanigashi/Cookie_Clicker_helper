@@ -131,17 +131,47 @@ class CookieClickerPlayer:
                 product = self.products[0]
                 price = product['bulkPrice']
 
-                if cookie_amount < price:
+                # get buff state
+                if self.is_buffed():
+                    check_point = time.perf_counter()
                     while True:
                         remain_seconds = int(end_time - time.perf_counter())
                         hour, mod_seconds = divmod(remain_seconds, 60 * 60)
                         minu, sec = divmod(mod_seconds, 60)
                         if hour > 0:
-                            print(f"\rAuto remain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min.", end='')
+                            print(f"\rAuto remain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min. : buffed", end='')
                         elif minu > 0:
-                            print(f"\rAuto remain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.", end='')
+                            print(f"\rAuto remain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec. : buffed", end='')
                         else:
-                            print(f"\rAuto remain Time is {str(sec).zfill(2)} sec.          ", end='')
+                            print(f"\rAuto remain Time is {str(sec).zfill(2)} sec.: buffed          ", end='')
+
+                        #click big cookies
+                        try:
+                            self.cookie.click()
+                        except ElementClickInterceptedException as e:
+                            print(e)
+
+                        #Check Golden Cookie
+                        self.click_shimmers_if_exist()
+
+                        # get current cookie amount
+                        cookie_amount = self.get_cookie_amount()
+
+                        #check past time from last is_buffed()
+                        if time.perf_counter() - check_point >= 20:
+                            break
+                    
+                elif cookie_amount < price:
+                    while True:
+                        remain_seconds = int(end_time - time.perf_counter())
+                        hour, mod_seconds = divmod(remain_seconds, 60 * 60)
+                        minu, sec = divmod(mod_seconds, 60)
+                        if hour > 0:
+                            print(f"\rAuto remain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min. : collect for {product['name']}", end='')
+                        elif minu > 0:
+                            print(f"\rAuto remain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec. : collect for {product['name']}", end='')
+                        else:
+                            print(f"\rAuto remain Time is {str(sec).zfill(2)} sec. : collect for {product['name']}          ", end='')
 
                         #click big cookies
                         try:
@@ -162,7 +192,7 @@ class CookieClickerPlayer:
                     # buy product
                     try:
                         self.driver.find_element(By.ID, f"product{product['id']}").click()
-                        print(f"bought {product['name']}")
+                        print(f" : bought {product['name']}")
                     except ElementClickInterceptedException as e:
                         print(e)
                 # check duration
@@ -180,6 +210,11 @@ class CookieClickerPlayer:
         except KeyboardInterrupt:
             self.save_to_file()
             print('[ctrl + C] has pushed. save data to file!')
+
+    def is_buffed(self):
+        buffs = self.driver.find_elements(By.CSS_SELECTOR, "#buffs > div")
+        # TODO Check buff type
+        return True if len(buffs) > 0 else False
 
 
     def get_cookie_amount(self):
