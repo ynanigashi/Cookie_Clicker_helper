@@ -180,7 +180,7 @@ class CookieClickerHelper:
                         try:
                             self.cookie.click()
                         except ElementClickInterceptedException as e:
-                            print(e)
+                            pass
 
                         #Check Golden Cookie
                         self.click_shimmers_if_exist()
@@ -208,7 +208,7 @@ class CookieClickerHelper:
                         try:
                             self.cookie.click()
                         except ElementClickInterceptedException as e:
-                            print(e)
+                            pass
 
                         #Check Golden Cookie
                         self.click_shimmers_if_exist()
@@ -233,7 +233,7 @@ class CookieClickerHelper:
                             self.driver.execute_script(f"Game.UpgradesById[{upgrade['id']}].buy()")
                             print(f" : bought {upgrade['name']}")
                     except ElementClickInterceptedException as e:
-                        print(e)
+                        pass
                 # check duration
                 if end_time - time.perf_counter() < 0:
                     hour, mod_seconds = divmod(seconds, 60 * 60)
@@ -289,7 +289,7 @@ class CookieClickerHelper:
                 try:
                     self.cookie.click()
                 except ElementClickInterceptedException as e:
-                    print(e)
+                    pass
                 
                 # Golden Cookie
                 self.click_shimmers_if_exist()
@@ -322,11 +322,11 @@ class CookieClickerHelper:
                 shimmer.click()
                 print(": Golden Cookie was clicked!!")
             except ElementClickInterceptedException as e:
-                print(e)
+                pass
             except ElementNotInteractableException as e:
-                print(e)
+                pass
             except StaleElementReferenceException as e:
-                print(e)
+                pass
 
     def cast_spell_if_mp_max(self):
         grimoire = self.driver.execute_script('return Game.ObjectsById[7].minigameLoaded')
