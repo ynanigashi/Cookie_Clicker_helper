@@ -17,6 +17,7 @@ class CookieClickerHelper:
         driver.get('https://orteil.dashnet.org/cookieclicker/')
         self.driver = driver
         self.products = []
+        self.max_price = 10**100
         
         # wait for big cookie load.
         WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.ID, 'bigCookie')))
@@ -76,6 +77,24 @@ class CookieClickerHelper:
         products.sort(key=lambda x: x['cost_perf'], reverse=True)
         self.products = products
 
+    def update_upgrades(self):
+        upgrades = self.driver.execute_script("""
+            return Game.UpgradesById.map(u => (
+                {
+                    id:u.id,
+                    name: u.name,
+                    unlocked: u.unlocked,
+                    bought: u.bought,
+                    price: u.basePrice,
+                    pool: u.pool,
+                }))
+                .filter(obj => obj.unlocked == 1)
+                .filter(obj => obj.bought == 0)
+                .filter(obj => obj.pool !== "toggle")
+                .filter(obj => obj.pool !== "tech")
+                """)
+        upgrades.sort(key=lambda u: u['price'])
+        self.upgrades = upgrades
 
     def rank(self):
         self.update_products()
@@ -124,10 +143,24 @@ class CookieClickerHelper:
                 mouse_cpc = self.driver.execute_script(' return Game.computedMouseCps')
                 # get current cookie amount
                 cookie_amount = self.get_cookie_amount()
+                
                 # get current products
                 self.update_products()
+
+                # get upgrades
+                self.update_upgrades()
+
                 product = self.products[0]
-                price = product['bulkPrice']
+                product_price = product['bulkPrice']
+
+                if len(self.upgrades) > 0:
+                    upgrade = self.upgrades[0]
+                    upgrade_price = upgrade['price']
+                else:
+                    upgrade_price = self.max_price
+
+                price = product_price if product_price < upgrade_price else upgrade_price 
+
 
                 # get buff state
                 if self.is_buffed():
@@ -169,7 +202,7 @@ class CookieClickerHelper:
                         elif minu > 0:
                             print(f"\rAuto remain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec. : collect for {product['name']}", end='')
                         else:
-                            print(f"\rAuto remain Time is {str(sec).zfill(2)} sec. : collect for {product['name']}          ", end='')
+                            print(f"\rAuto remain Time is {str(sec).zfill(2)} sec. : collect for {product['name'] if product_price < upgrade_price else upgrade['name'] }          ", end='')
 
                         #click big cookies
                         try:
@@ -193,8 +226,12 @@ class CookieClickerHelper:
                 else:
                     # buy product
                     try:
-                        self.driver.find_element(By.ID, f"product{product['id']}").click()
-                        print(f" : bought {product['name']}")
+                        if product_price < upgrade_price:
+                            self.driver.execute_script(f"Game.ObjectsById[{ product['id'] }].buy()")
+                            print(f" : bought {product['name']}")
+                        else:
+                            self.driver.execute_script(f"Game.UpgradesById[{upgrade['id']}].buy()")
+                            print(f" : bought {upgrade['name']}")
                     except ElementClickInterceptedException as e:
                         print(e)
                 # check duration
