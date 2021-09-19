@@ -2,26 +2,29 @@ Cookie Clicker helper
 
 on python IDLE
 ```
-from main import CookieClickerPlayer
+from main import CookieClickerHelper
 # if you have save data in click board
-player = CookieClickerPlayer(save_data=True)
+h = CookieClickerHelper(save_data=True)
 
 # you don't have save data
-player = CookieClickerPlayer()
+h = CookieClickerHelper()
 
 # check cps / billion
-player.rank() or player.rank3()
+h.rank() or player.rank3()
 
-# click big Cookie
-player.click_while(<seconds>)
+# click big Cookie while n seconds
+h.click_while(n)
+
+# auto play while n seconds
+h.auto(n)
 
 # save Game state to file
-player.save_to_file()
+h.save_to_file()
 
 # save Game state to clip board
-player.save_to_clip_board()
+h.save_to_clip_board()
 
 # load Game state from clip board
-player.load_to_clip_board()
+h.load_to_clip_board()
 
 ```

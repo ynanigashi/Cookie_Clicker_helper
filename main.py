@@ -11,7 +11,7 @@ from selenium.common.exceptions import StaleElementReferenceException
 import pyperclip
 
 
-class CookieClickerPlayer:
+class CookieClickerHelper:
     def __init__(self, save_data=False):
         driver = webdriver.Chrome()
         driver.get('https://orteil.dashnet.org/cookieclicker/')
@@ -117,8 +117,6 @@ class CookieClickerPlayer:
 
 
     def auto(self, seconds):
-        # get elements
-        self.click_cps = self.bulk_click(100)
         end_time = time.perf_counter() + seconds
         try:
             while True:
@@ -189,7 +187,8 @@ class CookieClickerPlayer:
                         cookie_amount = self.get_cookie_amount()
 
                         #check can buy and remain_seconds
-                        if cookie_amount >= price or remain_seconds <= 0:
+                        if cookie_amount >= price or remain_seconds < 0:
+                            print()
                             break
                 else:
                     # buy product
@@ -199,7 +198,7 @@ class CookieClickerPlayer:
                     except ElementClickInterceptedException as e:
                         print(e)
                 # check duration
-                if end_time - time.perf_counter() <= 0:
+                if end_time - time.perf_counter() < 0:
                     hour, mod_seconds = divmod(seconds, 60 * 60)
                     minu, sec = divmod(mod_seconds, 60)
                     if hour > 0:
@@ -306,11 +305,11 @@ class CookieClickerPlayer:
                 M.castSpell(M.spellsById[0]);
                 """)
 
-def test():
-    player = CookieClickerPlayer()
-    while True:
-        player.auto()
-
+def start():
+    return CookieClickerHelper()
+    
+def start_with_save():
+    return CookieClickerHelper(save_data=True)
 
 if __name__ == '__main__':
-    test()
+    start()
