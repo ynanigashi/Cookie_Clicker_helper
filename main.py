@@ -112,13 +112,19 @@ class CookieClickerHelper:
 
     def show_cps(self):
         units = [
-            (1000000000000000000000,'sextillion'),
-            (1000000000000000000, 'quintillion'),
-            (1000000000000000, 'quadrillion'),
-            (1000000000000,'trillion'),
-            (1000000000, 'billion'),
-            (1000000,'million'),
-            (1000,'thousand'),
+            (1000000000000000000000000000000000000000,'Duodecillion'),
+            (1000000000000000000000000000000000000,'Undecillion'),
+            (1000000000000000000000000000000000,'Decillion'),
+            (1000000000000000000000000000000,'Nonillion'),
+            (1000000000000000000000000000,'Octillion'),
+            (1000000000000000000000000,'Septillion'),
+            (1000000000000000000000,'Sextillion'),
+            (1000000000000000000, 'Quintillion'),
+            (1000000000000000, 'Quadrillion'),
+            (1000000000000,'Trillion'),
+            (1000000000, 'Billion'),
+            (1000000,'Million'),
+            (1000,'Thousand'),
              ]
         self.update_products()
         self.products.sort(key=lambda x: x['id'])
