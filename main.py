@@ -16,22 +16,20 @@ class CookieClickerHelper:
         driver = webdriver.Chrome()
         driver.get('https://orteil.dashnet.org/cookieclicker/')
         self.driver = driver
-        self.products = []
+        self.facilities = []
         self.max_price = 10**100
         
         # wait for big cookie load.
         WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.ID, 'bigCookie')))
         self.cookie = self.driver.find_element(By.ID, 'bigCookie')
-
-        # update click cps
-        self.update_clickcps()
         
+        time.sleep(2)
         # hide ad
         self.driver.execute_script('document.getElementById("smallSupport").remove()')
 
         # accept cookie
         WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[1]/div/a[1]')))
-        time.sleep(1)
+        time.sleep(2)
         self.driver.find_element(By.XPATH, '/html/body/div[1]/div/a[1]').click()
 
         #load save data
@@ -60,8 +58,8 @@ class CookieClickerHelper:
             f.write(self.save_data)
 
 
-    def update_products(self):
-        products = self.driver.execute_script("""
+    def update_facilities(self):
+        facilities = self.driver.execute_script("""
             return Game.ObjectsById.map(p => (
                 {
                     id: p.id,
@@ -72,10 +70,10 @@ class CookieClickerHelper:
                 }
             ))
             """)
-        for p in products:
+        for p in facilities:
             p['cost_perf'] = p['cps'] / p['bulkPrice']
-        products.sort(key=lambda x: x['cost_perf'], reverse=True)
-        self.products = products
+        facilities.sort(key=lambda x: x['cost_perf'], reverse=True)
+        self.facilities = facilities
 
     def update_upgrades(self):
         upgrades = self.driver.execute_script("""
@@ -97,17 +95,17 @@ class CookieClickerHelper:
         self.upgrades = upgrades
 
     def rank(self):
-        self.update_products()
-        for p in self.products:
+        self.update_facilities()
+        for p in self.facilities:
             print(f"{p['name']}:", f"{ '{:,.2f}'.format(p['cost_perf'] * 10 ** 9)} / Billion", sep='\t')
 
 
     def rank3(self):
-        self.update_products()
+        self.update_facilities()
         print('>>>> Best 3 <<<<<')
         cnt = 0
         for i in range(3):
-            p = self.products[i]
+            p = self.facilities[i]
             print(f"{i}:", p['name'],  f"{ '{:,.2f}'.format(p['cost_perf'] * 10 ** 9)} / Billion", sep='\t')
 
     def show_cps(self):
@@ -126,9 +124,9 @@ class CookieClickerHelper:
             (1000000,'Million'),
             (1000,'Thousand'),
              ]
-        self.update_products()
-        self.products.sort(key=lambda x: x['id'])
-        for p in self.products:
+        self.update_facilities()
+        self.facilities.sort(key=lambda x: x['id'])
+        for p in self.facilities:
             cps = p['cps']
             for number, unit_name in units:
                 if cps // number > 0:
@@ -137,144 +135,152 @@ class CookieClickerHelper:
             else:
                 p['cps'] = f"{int(cps)}"
                 
-        for p in self.products:
+        for p in self.facilities:
             print(f"{p['name']}:", f"{p['cps']}", sep='\t')
 
 
     def auto(self, seconds):
-        end_time = time.perf_counter() + seconds
+        self.end_time = time.perf_counter() + seconds
         try:
             while True:
                 # get cookie per click
-                mouse_cpc = self.driver.execute_script(' return Game.computedMouseCps')
-                # get current cookie amount
-                cookie_amount = self.get_cookie_amount()
-                
-                # get current products
-                self.update_products()
+                # mouse_cpc = self.driver.execute_script(' return Game.computedMouseCps')
 
-                # get upgrades
-                self.update_upgrades()
-
-                product = self.products[0]
-                product_price = product['bulkPrice']
-
-                if len(self.upgrades) > 0:
-                    upgrade = self.upgrades[0]
-                    upgrade_price = upgrade['price']
-                else:
-                    upgrade_price = self.max_price
-
-                price = product_price if product_price < upgrade_price else upgrade_price 
-
-                # check buff state
-                self.is_buffed()
-                
                 # if buffed don't purchase
+                self.update_buff_status()
                 if self.buffed:
-                    check_point = time.perf_counter()
-                    while True:
-                        remain_seconds = int(end_time - time.perf_counter())
-                        hour, mod_seconds = divmod(remain_seconds, 60 * 60)
-                        minu, sec = divmod(mod_seconds, 60)
-                        if hour > 0:
-                            print(f"\rAuto remain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min. : buffed", end='')
-                        elif minu > 0:
-                            print(f"\rAuto remain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec. : buffed", end='')
-                        else:
-                            print(f"\rAuto remain Time is {str(sec).zfill(2)} sec.: buffed          ", end='')
+                    self.click_while_buffend()
+  
+                # get current cookie amount
+                self.update_cookie_amount()
+                
+                # update affordable item = self.item
+                self.update_affordable_item()
 
-                        #click big cookies
-                        try:
-                            self.cookie.click()
-                        except ElementClickInterceptedException as e:
-                            pass
+                # if can't buy, so collect cookies
+                if self.cookie_amount < self.item['price']:
+                    self.click_while_collect_or_endtime()
 
-                        #Check Golden Cookie
-                        self.click_shimmers_if_exist()
+                # if can buy Purchase item if endtime reached don't purchase
+                if self.cookie_amount >= self.item['price']:
+                    self.purchase_item()
 
-                        # cast conjer baked cookies if mp max
-                        self.cast_spell_if_mp_max()
-
-                        #check past time from start this loop
-                        if time.perf_counter() - check_point >= 20:
-                            break
-                    
-                elif cookie_amount < price:
-                    while True:
-                        remain_seconds = int(end_time - time.perf_counter())
-                        hour, mod_seconds = divmod(remain_seconds, 60 * 60)
-                        minu, sec = divmod(mod_seconds, 60)
-                        if hour > 0:
-                            print(f"\rAuto remain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min. : collect for {product['name']}", end='')
-                        elif minu > 0:
-                            print(f"\rAuto remain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec. : collect for {product['name']}", end='')
-                        else:
-                            print(f"\rAuto remain Time is {str(sec).zfill(2)} sec. : collect for {product['name'] if product_price < upgrade_price else upgrade['name'] }          ", end='')
-
-                        #click big cookies
-                        try:
-                            self.cookie.click()
-                        except ElementClickInterceptedException as e:
-                            pass
-
-                        #Check Golden Cookie
-                        self.click_shimmers_if_exist()
-
-                        # cast conjer baked cookies if mp max
-                        self.cast_spell_if_mp_max()
-
-                        # get current cookie amount
-                        cookie_amount = self.get_cookie_amount()
-
-                        #check can buy and remain_seconds
-                        if cookie_amount >= price or remain_seconds < 0:
-                            print()
-                            break
-                else:
-                    # buy product
-                    try:
-                        if product_price < upgrade_price:
-                            self.driver.execute_script(f"Game.ObjectsById[{ product['id'] }].buy()")
-                            print(f" : bought {product['name']}")
-                        else:
-                            self.driver.execute_script(f"Game.UpgradesById[{upgrade['id']}].buy()")
-                            print(f" : bought {upgrade['name']}")
-                    except ElementClickInterceptedException as e:
-                        pass
-                # check duration
-                if end_time - time.perf_counter() < 0:
-                    hour, mod_seconds = divmod(seconds, 60 * 60)
-                    minu, sec = divmod(mod_seconds, 60)
-                    if hour > 0:
-                        print(f"\rcomplete auto {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
-                    elif minu > 0:
-                        print(f"\rcomplete auto {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
-                    else:
-                        print(f"\rcomplete auto {str(sec).zfill(2)} sec.        ")                    
+                # check duration ends
+                if self.end_time - time.perf_counter() < 0:
+                    self.display_time(seconds, 'Complate')
+                    print()
                     break
-
+        # if push ctrl + c end with save state to file 
         except KeyboardInterrupt:
             self.save_to_file()
             print('[ctrl + C] has pushed. save data to file!')
+    
 
-    def is_buffed(self):
+    def click_while_buffend(self):
+        while True:
+            # display remaitime
+            remain_seconds = int(self.end_time - time.perf_counter())
+            self.display_time(remain_seconds, 'Remain', 'buffed')
+
+            #click big cookies
+            try:
+                self.cookie.click()
+            except ElementClickInterceptedException as e:
+                pass
+
+            #Check Golden Cookie
+            self.click_shimmers_if_exist()
+
+            # cast conjer baked cookies if mp max
+            self.cast_spell_if_mp_max()
+
+            # update buff status
+            self.update_buff_status()
+            #check buff status
+            if not self.buffed:
+                break
+    
+
+    def update_affordable_item(self):
+        # get current facilities and upgrades
+        self.update_facilities()
+        self.update_upgrades()
+
+        # if there are upgrades
+        if len(self.upgrades) > 0 and self.upgrades[0]['price'] < self.facilities[0]['bulkPrice']:
+            self.item = self.upgrades[0]
+            self.item['type'] = 'upgrade'
+        # transform bulkPrice to price
+        else:
+            self.item = self.facilities[0]
+            self.item['price'] = self.item['bulkPrice']
+            self.item['type'] = 'facility'
+
+
+    def click_while_collect_or_endtime(self):
+        while True:
+            # display remain time
+            remain_seconds = int(self.end_time - time.perf_counter())
+            self.display_time(remain_seconds, 'Remain', f"Collect for {self.item['name']}")
+
+            #click big cookies
+            try:
+                self.cookie.click()
+            except ElementClickInterceptedException as e:
+                pass
+
+            #Check Golden Cookie
+            self.click_shimmers_if_exist()
+
+            # cast conjer baked cookies if mp max
+            self.cast_spell_if_mp_max()
+
+            # get current cookie amount
+            self.update_cookie_amount()
+
+            #check can buy and remain_seconds
+            if self.cookie_amount >= self.item['price'] or remain_seconds < 0:
+                print()
+                break
+    
+
+    def purchase_item(self):
+        if self.item['type'] == 'facility':
+            js = f"Game.ObjectsById[{ self.item['id'] }].buy()"
+        else:
+            js = f"Game.UpgradesById[{ self.item['id'] }].buy()"
+        try:
+            self.driver.execute_script(js)
+            print(f":purchased {self.item['name']}")
+        except Exception as e:
+            print(e)
+
+
+    def display_time(self, seconds, type, msg=''):
+        hour, mod_seconds = divmod(seconds, 60 * 60)
+        minu, sec = divmod(mod_seconds, 60)
+        print(f"\r{type}: {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.  : {msg}", end='')
+
+
+    def update_buff_status(self):
         self.buffed = False
         buffs = self.driver.find_elements(By.CSS_SELECTOR, "#buffs > div")
         # check buff type
         for buff in buffs:
             # If something other than buff40 exists, state is buff
-            buff_id = buff.get_attribute("id")
-            # buff40 is clot 
-            if buff_id != 'buff40':
-                self.buffed = True
+            try:
+                mouse_over = buff.get_attribute("onmouseover")
+                # buff40 is clot 
+                if not 'Clot' in mouse_over:
+                    self.buffed = True
+            except StaleElementReferenceException as e:
+                pass
 
 
-    def get_cookie_amount(self):
-            cookies = self.driver.execute_script("""
+    def update_cookie_amount(self):
+            self.cookie_amount = int(self.driver.execute_script("""
             return Game.cookies
-            """)
-            return cookies
+            """))
 
 
     def bulk_click(self, n):
@@ -289,15 +295,9 @@ class CookieClickerHelper:
         end_time = time.perf_counter() + n
         try:
             while True:
+                # display remain time
                 remain_seconds = int(end_time - time.perf_counter())
-                hour, mod_seconds = divmod(remain_seconds, 60 * 60)
-                minu, sec = divmod(mod_seconds, 60)
-                if hour > 0:
-                    print(f"\rClick Remain Time is {str(hour).zfill(2)} hour {str(minu).zfill(2)} min.", end='')
-                elif minu > 0:
-                    print(f"\rClick Remain Time is {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.", end='')
-                else:
-                    print(f"\rClick Remain Time is {str(sec).zfill(2)} sec.          ", end='')
+                self.display_time(remain_seconds, 'Remain', 'Click!!')
 
                 #click big cookies
                 try:
@@ -312,18 +312,12 @@ class CookieClickerHelper:
                 self.cast_spell_if_mp_max()
                 
                 if remain_seconds <= 0:
-                    hour, mod_seconds = divmod(n, 60 * 60)
-                    minu, sec = divmod(mod_seconds, 60)
-                    if hour > 0:
-                        print(f"\rcomplete click {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
-                    elif minu > 0:
-                        print(f"\rcomplete click {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.")
-                    else:
-                        print(f"\rcomplete click {str(sec).zfill(2)} sec.        ")                    
+                    self.display_time(n, 'Complete', 'Clicked')
                     break
         except KeyboardInterrupt:
             self.save_to_file()
             print('[ctrl + C] has pushed. save data to file!')
+
 
     def update_clickcps(self):
         self.click_cps = self.bulk_click(100)
@@ -341,6 +335,7 @@ class CookieClickerHelper:
                 pass
             except StaleElementReferenceException as e:
                 pass
+
 
     def cast_spell_if_mp_max(self):
         grimoire = self.driver.execute_script('return Game.ObjectsById[7].minigameLoaded')
