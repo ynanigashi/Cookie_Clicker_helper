@@ -161,9 +161,11 @@ class CookieClickerHelper:
 
                 price = product_price if product_price < upgrade_price else upgrade_price 
 
-
-                # get buff state
-                if self.is_buffed():
+                # check buff state
+                self.is_buffed()
+                
+                # if buffed don't purchase
+                if self.buffed:
                     check_point = time.perf_counter()
                     while True:
                         remain_seconds = int(end_time - time.perf_counter())
@@ -188,7 +190,7 @@ class CookieClickerHelper:
                         # cast conjer baked cookies if mp max
                         self.cast_spell_if_mp_max()
 
-                        #check past time from last is_buffed()
+                        #check past time from start this loop
                         if time.perf_counter() - check_point >= 20:
                             break
                     
@@ -251,9 +253,15 @@ class CookieClickerHelper:
             print('[ctrl + C] has pushed. save data to file!')
 
     def is_buffed(self):
+        self.buffed = False
         buffs = self.driver.find_elements(By.CSS_SELECTOR, "#buffs > div")
-        # TODO Check buff type
-        return True if len(buffs) > 0 else False
+        # check buff type
+        for buff in buffs:
+            # If something other than buff40 exists, state is buff
+            buff_id = buff.get_attribute("id")
+            # buff40 is clot 
+            if buff_id != 'buff40':
+                self.buffed = True
 
 
     def get_cookie_amount(self):
