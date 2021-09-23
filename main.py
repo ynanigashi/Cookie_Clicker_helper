@@ -66,12 +66,12 @@ class CookieClickerHelper:
                     name: p.name,
                     amount: p.amount,
                     cps: p.amount === 0 ? p.storedCps * Game.globalCpsMult : (p.storedTotalCps/p.amount) * Game.globalCpsMult,
-                    bulkPrice: p.bulkPrice,
+                    price: p.bulkPrice,
                 }
             ))
             """)
         for p in facilities:
-            p['cost_perf'] = p['cps'] / p['bulkPrice']
+            p['cost_perf'] = p['cps'] / p['price']
         facilities.sort(key=lambda x: x['cost_perf'], reverse=True)
         self.facilities = facilities
 
@@ -83,7 +83,7 @@ class CookieClickerHelper:
                     name: u.name,
                     unlocked: u.unlocked,
                     bought: u.bought,
-                    price: u.basePrice,
+                    price: u.getPrice(),
                     pool: u.pool,
                 }))
                 .filter(obj => obj.unlocked == 1)
@@ -207,13 +207,11 @@ class CookieClickerHelper:
         self.update_upgrades()
 
         # if there are upgrades
-        if len(self.upgrades) > 0 and self.upgrades[0]['price'] < self.facilities[0]['bulkPrice']:
+        if len(self.upgrades) > 0 and self.upgrades[0]['price'] < self.facilities[0]['price']:
             self.item = self.upgrades[0]
             self.item['type'] = 'upgrade'
-        # transform bulkPrice to price
         else:
             self.item = self.facilities[0]
-            self.item['price'] = self.item['bulkPrice']
             self.item['type'] = 'facility'
 
 
@@ -313,6 +311,7 @@ class CookieClickerHelper:
                 
                 if remain_seconds <= 0:
                     self.display_time(n, 'Complete', 'Clicked')
+                    print()
                     break
         except KeyboardInterrupt:
             self.save_to_file()
