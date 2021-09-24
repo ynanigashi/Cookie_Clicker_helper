@@ -17,7 +17,7 @@ class CookieClickerHelper:
         driver.get('https://orteil.dashnet.org/cookieclicker/')
         self.driver = driver
         self.facilities = []
-        self.max_price = 10**100
+        self.upgrades = []
         
         # wait for big cookie load.
         WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.ID, 'bigCookie')))
@@ -32,9 +32,31 @@ class CookieClickerHelper:
         time.sleep(2)
         self.driver.find_element(By.XPATH, '/html/body/div[1]/div/a[1]').click()
 
-        #load save data
-        if save_data:
+        # load save data from clipboard
+        if not save_data:
+            user_input = self.get_yn('Do you want to load the saved data from Clipboard?')
+        if save_data or user_input == 'y':
             self.load_from_clip_board()
+
+
+    def get_yn(self, str, flg=''):
+        yeses = ['y', 'yes', 'ｙ', 'Ｙ', 'ｙｅｓ', 'ＹＥＳ', 'Ｙｅｓ']
+        noes = ['n', 'no', 'ｎ', 'Ｎ', 'ｎｏ', 'ＮＯ', 'Ｎｏ']
+        ans = ''
+        while ans == '':
+            user_input = input(f'{str} (y/n):').lower()
+            if user_input in yeses:
+                ans = 'y'
+            elif user_input in noes:
+                ans = 'n'
+            else:
+                print('input [y] or [n].')
+         
+        if flg == '':
+            return ans
+        else:
+            if ans == 'y': flg = True
+            else: flg = False    
 
 
     def load_from_clip_board(self):

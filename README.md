@@ -28,3 +28,8 @@ h.save_to_clip_board()
 h.load_to_clip_board()
 
 ```
+TODO
+- improve auto
+    - Dragon train
+    - Grandmapocalypse
+    - Pantheon
