@@ -176,8 +176,13 @@ class CookieClickerHelper:
             p = self.facilities[i]
             print(f"{i}:", p['name'],  f"{ '{:,.2f}'.format(p['cost_perf'] * 10 ** 9)} / Billion", sep='\t')
 
-    def show_cps(self):
+
+    def transform_readable_number(self, number):
         units = [
+            (1000000000000000000000000000000000000000000000000000,'Sexdecillion'),
+            (1000000000000000000000000000000000000000000000000,'Quindecillion'),
+            (1000000000000000000000000000000000000000000000,'Quattuordecillion'),
+            (1000000000000000000000000000000000000000000,'Tredecillion'),
             (1000000000000000000000000000000000000000,'Duodecillion'),
             (1000000000000000000000000000000000000,'Undecillion'),
             (1000000000000000000000000000000000,'Decillion'),
@@ -191,17 +196,22 @@ class CookieClickerHelper:
             (1000000000, 'Billion'),
             (1000000,'Million'),
             (1000,'Thousand'),
-             ]
+                ]
+        for i, unit_name in units:
+            if number // i > 0:
+                display_str = f"{'{:,.2f}'.format(number/i)} {unit_name}"
+                break
+        else:
+            display_str = f"{int(number)}"
+
+        return display_str
+
+
+    def show_cps(self):
         self.update_facilities()
         self.facilities.sort(key=lambda x: x['id'])
         for p in self.facilities:
-            cps = p['cps']
-            for number, unit_name in units:
-                if cps // number > 0:
-                    p['cps'] = f"{'{:,.2f}'.format(cps/number)} {unit_name}"
-                    break
-            else:
-                p['cps'] = f"{int(cps)}"
+            p['cps'] = self.transform_readable_number(p['cps'])
                 
         for p in self.facilities:
             print(f"{p['name']}:", f"{p['cps']}", sep='\t')
@@ -227,13 +237,14 @@ class CookieClickerHelper:
                 
                 # get affordable item
                 item = self.get_affordable_item()
+                item_price = item['price']
 
                 # if can't buy, so collect cookies
-                if self.cookies_in_bank < item['price']:
+                if self.cookies_in_bank < item_price:
                     self.click_while_collect_or_endtime(item, end_time)
 
                 # if can buy Purchase item if endtime reached don't purchase
-                if self.cookies_in_bank >= item['price']:
+                if self.cookies_in_bank >= item_price:
                     self.purchase_item(item)
 
                 # check duration ends
@@ -283,6 +294,8 @@ class CookieClickerHelper:
             item = self.facilities[0]
             item['type'] = 'facility'
         
+        item['display_price'] = self.transform_readable_number(item['price'])
+
         return item
 
 
@@ -290,7 +303,7 @@ class CookieClickerHelper:
         while True:
             # display remain time
             remain_seconds = int(end_time - time.perf_counter())
-            self.display_time(remain_seconds, 'Remain', f"Collect for {item['name']}")
+            self.display_time(remain_seconds, 'Remain', f"Collect for {item['name']} / {item['display_price']}")
 
             #click big cookies
             try:
