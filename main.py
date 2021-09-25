@@ -21,13 +21,13 @@ class CookieClickerHelper:
         
         # wait for big cookie load.
         WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.ID, 'bigCookie')))
-        self.cookie = self.driver.find_element(By.ID, 'bigCookie')
+        self.big_cookie = self.driver.find_element(By.ID, 'bigCookie')
         
         time.sleep(2)
         # hide ad
         self.driver.execute_script('document.getElementById("smallSupport").remove()')
 
-        # accept cookie
+        # Click accept cookie button
         WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[1]/div/a[1]')))
         time.sleep(2)
         self.driver.find_element(By.XPATH, '/html/body/div[1]/div/a[1]').click()
@@ -37,14 +37,14 @@ class CookieClickerHelper:
             user_input = self.get_yn('Do you want to load the saved data from Clipboard?')
         if save_data is True or user_input == 'y':
             self.load_from_clip_board()
-        # check 
+
+        # check auto_grandmapocalypse
         # init user_input
         user_input = ''
         if auto_grandmapocalypse is None:
             user_input = self.get_yn('Do you want to auto play Grandmapocalypse?')
         if auto_grandmapocalypse is True or user_input == 'y':
             self.auto_grandmapocalypse = True
-            self.elder_pledge = None
             # kill Wrinklers every 3 hours
             self.pledge_duration = 60 * 60 * 3
             self.set_pledge_time()
@@ -89,8 +89,8 @@ class CookieClickerHelper:
 
 
     def save_to_clip_board(self):
-        self.save_data = self.driver.execute_script("return Game.WriteSave(1)")
-        pyperclip.copy(self.save_data)
+        save_data = self.driver.execute_script("return Game.WriteSave(1)")
+        pyperclip.copy(save_data)
 
 
     def save_to_file(self, str=''):
@@ -98,9 +98,9 @@ class CookieClickerHelper:
         if str == '':
             str = 'Cookie_Clicker_Save'
         file_name = f'{str}_{now.strftime("%Y%m%d%H%M%S") }.txt'
-        self.save_data = self.driver.execute_script("return Game.WriteSave(1)")
+        save_data = self.driver.execute_script("return Game.WriteSave(1)")
         with open(file_name, mode='w') as f:
-            f.write(self.save_data)
+            f.write(save_data)
 
 
     def update_facilities(self):
@@ -140,15 +140,14 @@ class CookieClickerHelper:
             upgrades = [u for u in upgrades if u['pool'] != 'tech']
         
         if not self.pledge_time is None and self.pledge_time < time.perf_counter():
-            self.get_elder_pledge()
-            upgrades.append(self.elder_pledge)
+            upgrades.append(self.get_elder_pledge())
 
         upgrades.sort(key=lambda u: u['price'])
         self.upgrades = upgrades
 
 
     def get_elder_pledge(self):
-        self.elder_pledge = self.driver.execute_script("""
+        elder_pledge = self.driver.execute_script("""
             return Game.UpgradesById.map(u => (
                 {
                     id:u.id,
@@ -161,7 +160,7 @@ class CookieClickerHelper:
                 .filter(obj => obj.unlocked == 1)
                 .filter(obj => obj.name === "Elder Pledge")
                 """)[0]
-
+        return elder_pledge
 
     def rank(self):
         self.update_facilities()
@@ -209,7 +208,7 @@ class CookieClickerHelper:
 
 
     def auto(self, seconds):
-        self.end_time = time.perf_counter() + seconds
+        end_time = time.perf_counter() + seconds
         
         # save data loaded after initializing
         if self.auto_grandmapocalypse is True and self.pledge_time is None:
@@ -220,26 +219,25 @@ class CookieClickerHelper:
                 # mouse_cpc = self.driver.execute_script(' return Game.computedMouseCps')
 
                 # if buffed don't purchase
-                self.update_buff_status()
-                if self.buffed:
-                    self.click_while_buffend()
+                if self.is_buffed():
+                    self.click_while_buffend(end_time)
   
-                # get current cookie amount
-                self.update_cookie_amount()
+                # update current cookie amount self.cookies_in_bank
+                self.update_cookies_in_bank()
                 
-                # update affordable item = self.item
-                self.update_affordable_item()
+                # get affordable item
+                item = self.get_affordable_item()
 
                 # if can't buy, so collect cookies
-                if self.cookie_amount < self.item['price']:
-                    self.click_while_collect_or_endtime()
+                if self.cookies_in_bank < item['price']:
+                    self.click_while_collect_or_endtime(item, end_time)
 
                 # if can buy Purchase item if endtime reached don't purchase
-                if self.cookie_amount >= self.item['price']:
-                    self.purchase_item()
+                if self.cookies_in_bank >= item['price']:
+                    self.purchase_item(item)
 
                 # check duration ends
-                if self.end_time - time.perf_counter() < 0:
+                if end_time - time.perf_counter() < 0:
                     self.display_time(seconds, 'Complate')
                     print()
                     break
@@ -249,15 +247,15 @@ class CookieClickerHelper:
             print('[ctrl + C] has pushed. save data to file!')
     
 
-    def click_while_buffend(self):
+    def click_while_buffend(self, end_time):
         while True:
             # display remaitime
-            remain_seconds = int(self.end_time - time.perf_counter())
+            remain_seconds = int(end_time - time.perf_counter())
             self.display_time(remain_seconds, 'Remain', 'buffed')
 
             #click big cookies
             try:
-                self.cookie.click()
+                self.big_cookie.click()
             except ElementClickInterceptedException as e:
                 pass
 
@@ -267,36 +265,36 @@ class CookieClickerHelper:
             # cast conjer baked cookies if mp max
             self.cast_spell_if_mp_max()
 
-            # update buff status
-            self.update_buff_status()
             #check buff status
-            if not self.buffed:
+            if not self.is_buffed():
                 break
     
 
-    def update_affordable_item(self):
+    def get_affordable_item(self):
         # get current facilities and upgrades
         self.update_facilities()
         self.update_upgrades()
 
         # if there are upgrades
         if len(self.upgrades) > 0 and self.upgrades[0]['price'] < self.facilities[0]['price']:
-            self.item = self.upgrades[0]
-            self.item['type'] = 'upgrade'
+            item = self.upgrades[0]
+            item['type'] = 'upgrade'
         else:
-            self.item = self.facilities[0]
-            self.item['type'] = 'facility'
+            item = self.facilities[0]
+            item['type'] = 'facility'
+        
+        return item
 
 
-    def click_while_collect_or_endtime(self):
+    def click_while_collect_or_endtime(self, item, end_time):
         while True:
             # display remain time
-            remain_seconds = int(self.end_time - time.perf_counter())
-            self.display_time(remain_seconds, 'Remain', f"Collect for {self.item['name']}")
+            remain_seconds = int(end_time - time.perf_counter())
+            self.display_time(remain_seconds, 'Remain', f"Collect for {item['name']}")
 
             #click big cookies
             try:
-                self.cookie.click()
+                self.big_cookie.click()
             except ElementClickInterceptedException as e:
                 pass
 
@@ -307,31 +305,31 @@ class CookieClickerHelper:
             self.cast_spell_if_mp_max()
 
             # get current cookie amount
-            self.update_cookie_amount()
+            self.update_cookies_in_bank()
 
             #check can buy and remain_seconds
-            if self.cookie_amount >= self.item['price'] or remain_seconds < 0:
+            if self.cookies_in_bank >= item['price'] or remain_seconds < 0:
                 print()
                 break
     
 
-    def purchase_item(self):
+    def purchase_item(self, item):
         # one mind needs argment
         arg = ''
-        if self.item['name'] == 'One mind':
+        if item['name'] == 'One mind':
             arg = '1'
         # purchase facility
-        if self.item['type'] == 'facility':
-            js = f"Game.ObjectsById[{ self.item['id'] }].buy()"
+        if item['type'] == 'facility':
+            js = f"Game.ObjectsById[{ item['id'] }].buy()"
         # purchase Upgrades
         else:
-            js = f"Game.UpgradesById[{ self.item['id'] }].buy({arg})"
+            js = f"Game.UpgradesById[{ item['id'] }].buy({arg})"
         try:
             self.driver.execute_script(js)
-            print(f":purchased {self.item['name']}")
+            print(f":purchased {item['name']}")
 
             # if success purchase and item name is Elder Pact or Elder Pledge set pledge time
-            if self.item['name'] in ['Elder Pact', 'Elder Pledge']:
+            if item['name'] in ['Elder Pact', 'Elder Pledge']:
                 self.pledge_time = time.perf_counter()  + self.pledge_duration
         except Exception as e:
             print(e)
@@ -343,8 +341,8 @@ class CookieClickerHelper:
         print(f"\r{type}: {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.  : {msg}", end='')
 
 
-    def update_buff_status(self):
-        self.buffed = False
+    def is_buffed(self):
+        buffed = False
         buffs = self.driver.find_elements(By.CSS_SELECTOR, "#buffs > div")
         # check buff type
         for buff in buffs:
@@ -353,21 +351,21 @@ class CookieClickerHelper:
                 mouse_over = buff.get_attribute("onmouseover")
                 # buff40 is clot 
                 if not 'Clot' in mouse_over:
-                    self.buffed = True
+                    buffed = True
             except StaleElementReferenceException as e:
                 pass
+        return buffed
 
 
-    def update_cookie_amount(self):
-            self.cookie_amount = int(self.driver.execute_script("""
+    def update_cookies_in_bank(self):
+        self.cookies_in_bank = int(self.driver.execute_script("""
             return Game.cookies
             """))
-
 
     def bulk_click(self, n):
         before = time.perf_counter()
         for _ in range(n):
-            self.cookie.click()
+            self.big_cookie.click()
         after = time.perf_counter()
         return n / (after - before)
 
@@ -382,7 +380,7 @@ class CookieClickerHelper:
 
                 #click big cookies
                 try:
-                    self.cookie.click()
+                    self.big_cookie.click()
                 except ElementClickInterceptedException as e:
                     pass
                 
