@@ -5,6 +5,8 @@ on python IDLE
 from main import CookieClickerHelper
 # if you have save data in click board
 h = CookieClickerHelper(save_data=True)
+or
+h = CookieClickerHelper(True)
 
 # you don't have save data
 h = CookieClickerHelper()

@@ -12,7 +12,7 @@ import pyperclip
 
 
 class CookieClickerHelper:
-    def __init__(self, save_data=False):
+    def __init__(self, save_data=None, auto_grandmapocalypse=None):
         driver = webdriver.Chrome()
         driver.get('https://orteil.dashnet.org/cookieclicker/')
         self.driver = driver
@@ -33,11 +33,32 @@ class CookieClickerHelper:
         self.driver.find_element(By.XPATH, '/html/body/div[1]/div/a[1]').click()
 
         # load save data from clipboard
-        if not save_data:
+        if save_data is None:
             user_input = self.get_yn('Do you want to load the saved data from Clipboard?')
-        if save_data or user_input == 'y':
+        if save_data is True or user_input == 'y':
             self.load_from_clip_board()
+        # check 
+        # init user_input
+        user_input = ''
+        if auto_grandmapocalypse is None:
+            user_input = self.get_yn('Do you want to auto play Grandmapocalypse?')
+        if auto_grandmapocalypse is True or user_input == 'y':
+            self.auto_grandmapocalypse = True
+            self.elder_pledge = None
+            # kill Wrinklers every 3 hours
+            self.pledge_duration = 60 * 60 * 3
+            self.set_pledge_time()
+        else:
+            self.auto_grandmapocalypse = False
 
+    def set_pledge_time(self):
+        # if game has Elder Pact, so state is granmapocalypse
+        has_elderPact = int(self.driver.execute_script('return Game.Has("Elder Pact")'))
+
+        if has_elderPact == 1:
+            self.pledge_time = time.perf_counter() + self.pledge_duration
+        else:
+            self.pledge_time = None
 
     def get_yn(self, str, flg=''):
         yeses = ['y', 'yes', 'ｙ', 'Ｙ', 'ｙｅｓ', 'ＹＥＳ', 'Ｙｅｓ']
@@ -72,9 +93,11 @@ class CookieClickerHelper:
         pyperclip.copy(self.save_data)
 
 
-    def save_to_file(self):
+    def save_to_file(self, str=''):
         now = dt.now()
-        file_name = f'Cookie_Clicker_Save_{now.strftime("%Y%m%d%H%M%S") }.txt'
+        if str == '':
+            str = 'Cookie_Clicker_Save'
+        file_name = f'{str}_{now.strftime("%Y%m%d%H%M%S") }.txt'
         self.save_data = self.driver.execute_script("return Game.WriteSave(1)")
         with open(file_name, mode='w') as f:
             f.write(self.save_data)
@@ -111,10 +134,34 @@ class CookieClickerHelper:
                 .filter(obj => obj.unlocked == 1)
                 .filter(obj => obj.bought == 0)
                 .filter(obj => obj.pool !== "toggle")
-                .filter(obj => obj.pool !== "tech")
                 """)
+        # for auto grandmapocalipse exclude tech from upgrades
+        if self.auto_grandmapocalypse is False:
+            upgrades = [u for u in upgrades if u['pool'] != 'tech']
+        
+        if not self.pledge_time is None and self.pledge_time < time.perf_counter():
+            self.get_elder_pledge()
+            upgrades.append(self.elder_pledge)
+
         upgrades.sort(key=lambda u: u['price'])
         self.upgrades = upgrades
+
+
+    def get_elder_pledge(self):
+        self.elder_pledge = self.driver.execute_script("""
+            return Game.UpgradesById.map(u => (
+                {
+                    id:u.id,
+                    name: u.name,
+                    unlocked: u.unlocked,
+                    bought: u.bought,
+                    price: u.getPrice(),
+                    pool: u.pool,
+                }))
+                .filter(obj => obj.unlocked == 1)
+                .filter(obj => obj.name === "Elder Pledge")
+                """)[0]
+
 
     def rank(self):
         self.update_facilities()
@@ -163,6 +210,10 @@ class CookieClickerHelper:
 
     def auto(self, seconds):
         self.end_time = time.perf_counter() + seconds
+        
+        # save data loaded after initializing
+        if self.auto_grandmapocalypse is True and self.pledge_time is None:
+            self.set_pledge_time()
         try:
             while True:
                 # get cookie per click
@@ -265,13 +316,23 @@ class CookieClickerHelper:
     
 
     def purchase_item(self):
+        # one mind needs argment
+        arg = ''
+        if self.item['name'] == 'One mind':
+            arg = '1'
+        # purchase facility
         if self.item['type'] == 'facility':
             js = f"Game.ObjectsById[{ self.item['id'] }].buy()"
+        # purchase Upgrades
         else:
-            js = f"Game.UpgradesById[{ self.item['id'] }].buy()"
+            js = f"Game.UpgradesById[{ self.item['id'] }].buy({arg})"
         try:
             self.driver.execute_script(js)
             print(f":purchased {self.item['name']}")
+
+            # if success purchase and item name is Elder Pact or Elder Pledge set pledge time
+            if self.item['name'] in ['Elder Pact', 'Elder Pledge']:
+                self.pledge_time = time.perf_counter()  + self.pledge_duration
         except Exception as e:
             print(e)
 
