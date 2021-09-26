@@ -62,6 +62,8 @@ class CookieClickerHelper:
             user_input = self.get_yn_from_user_input(msg)
         if auto_dragontrain is True or user_input == 'y':
             self.auto_dragontrain = True
+            # update facility data
+            self.update_facilities()
         else:
             self.auto_dragontrain = False
 
@@ -293,7 +295,7 @@ class CookieClickerHelper:
 
         if level <= 3:
             self.level_up_dragon()
-            
+
         elif level == 4:
             self.level_up_dragon()
             # set DragonAura 1 ( 'Breath of Milk') to 0 (slot 1)
