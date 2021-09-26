@@ -158,7 +158,7 @@ class CookieClickerHelper:
         if self.auto_grandmapocalypse is False:
             upgrades = [u for u in upgrades if u['pool'] != 'tech']
         
-        if not self.pledge_time is None and self.pledge_time < time.perf_counter():
+        elif not self.pledge_time is None and self.pledge_time < time.perf_counter():
             upgrades.append(self.get_elder_pledge())
 
         upgrades.sort(key=lambda u: u['price'])
