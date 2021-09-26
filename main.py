@@ -2,17 +2,17 @@ import time
 from datetime import datetime as dt
 
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import ElementNotInteractableException
 from selenium.common.exceptions import StaleElementReferenceException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import pyperclip
 
 
 class CookieClickerHelper:
-    def __init__(self, save_data=None, auto_grandmapocalypse=None):
+    def __init__(self, save_data=None, auto_grandmapocalypse=None, auto_dragontrain=None):
         driver = webdriver.Chrome()
         driver.get('https://orteil.dashnet.org/cookieclicker/')
         self.driver = driver
@@ -33,8 +33,10 @@ class CookieClickerHelper:
         self.driver.find_element(By.XPATH, '/html/body/div[1]/div/a[1]').click()
 
         # load save data from clipboard
+        user_input = ''
         if save_data is None:
-            user_input = self.get_yn('Do you want to load the saved data from Clipboard?')
+            msg = 'Do you want to load the saved data from Clipboard?'
+            user_input = self.get_yn_from_user_input(msg)
         if save_data is True or user_input == 'y':
             self.load_from_clip_board()
 
@@ -42,7 +44,8 @@ class CookieClickerHelper:
         # init user_input
         user_input = ''
         if auto_grandmapocalypse is None:
-            user_input = self.get_yn('Do you want to auto play Grandmapocalypse?')
+            msg = 'Do you want to auto play Grandmapocalypse?'
+            user_input = self.get_yn_from_user_input(msg)
         if auto_grandmapocalypse is True or user_input == 'y':
             self.auto_grandmapocalypse = True
             # kill Wrinklers every 3 hours
@@ -50,6 +53,18 @@ class CookieClickerHelper:
             self.set_pledge_time()
         else:
             self.auto_grandmapocalypse = False
+
+        # Check auto_dragontrain
+        # init user_input
+        user_input = ''
+        if auto_dragontrain is None:
+            msg = 'Do you want to auto play Dragon train?'
+            user_input = self.get_yn_from_user_input(msg)
+        if auto_dragontrain is True or user_input == 'y':
+            self.auto_dragontrain = True
+        else:
+            self.auto_dragontrain = False
+
 
     def set_pledge_time(self):
         # if game has Elder Pact, so state is granmapocalypse
@@ -60,7 +75,8 @@ class CookieClickerHelper:
         else:
             self.pledge_time = None
 
-    def get_yn(self, str, flg=''):
+
+    def get_yn_from_user_input(self, str, flg=''):
         yeses = ['y', 'yes', 'ｙ', 'Ｙ', 'ｙｅｓ', 'ＹＥＳ', 'Ｙｅｓ']
         noes = ['n', 'no', 'ｎ', 'Ｎ', 'ｎｏ', 'ＮＯ', 'Ｎｏ']
         ans = ''
@@ -120,6 +136,7 @@ class CookieClickerHelper:
         facilities.sort(key=lambda x: x['cost_perf'], reverse=True)
         self.facilities = facilities
 
+
     def update_upgrades(self):
         upgrades = self.driver.execute_script("""
             return Game.UpgradesById.map(u => (
@@ -161,6 +178,7 @@ class CookieClickerHelper:
                 .filter(obj => obj.name === "Elder Pledge")
                 """)[0]
         return elder_pledge
+
 
     def rank(self):
         self.update_facilities()
@@ -225,6 +243,9 @@ class CookieClickerHelper:
             self.set_pledge_time()
         try:
             while True:
+                # auto dragon train
+                if self.auto_dragontrain:
+                    self.train_dragon()
                 # get cookie per click
                 # mouse_cpc = self.driver.execute_script(' return Game.computedMouseCps')
 
@@ -257,6 +278,78 @@ class CookieClickerHelper:
             self.save_to_file()
             print('[ctrl + C] has pushed. save data to file!')
     
+
+    def train_dragon(self):
+        if not self.has_crumbly_egg():
+            return
+        
+        # display dragon tooltip(special tab)
+        self.driver.execute_script('Game.specialTab = "dragon"')
+
+        confirm_button_id = 'promptOption0'
+        level = int(self.driver.execute_script('return Game.dragonLevel'))
+        number_of_prism = self.get_amount_of_facility('Prism')
+        number_of_ideleverse = self.get_amount_of_facility('Idleverse')
+
+        if level <= 3:
+            self.level_up_dragon()
+            
+        elif level == 4:
+            self.level_up_dragon()
+            # set DragonAura 1 ( 'Breath of Milk') to 0 (slot 1)
+            self.driver.execute_script('Game.SetDragonAura(1, 0)')
+            # Click Confirm button
+            WebDriverWait(self.driver, 5).until(EC.presence_of_all_elements_located((By.ID, confirm_button_id)))
+            self.driver.find_element(By.ID, confirm_button_id).click()
+            
+        elif level <= 17 and number_of_prism >= 100:
+            self.level_up_dragon()
+
+        elif level == 18 and number_of_prism >= 100:
+            self.level_up_dragon()
+            
+            # set DragonAura 15 ("Radiant Appetite") to 0 (slot 1)
+            self.driver.execute_script('Game.SetDragonAura(15, 0)')
+            # Click Confirm button
+            WebDriverWait(self.driver, 5).until(EC.presence_of_all_elements_located((By.ID, confirm_button_id)))
+            self.driver.find_element(By.ID, confirm_button_id).click()
+
+        elif level <= 23 and number_of_ideleverse >= 200:
+            self.level_up_dragon()
+
+        elif level == 24 and number_of_ideleverse >= 200:
+            self.level_up_dragon()
+
+            # set DragonAura, 1 ('Breath of Milk') to 1 (slot 2)
+            self.driver.execute_script('Game.SetDragonAura(1, 1)')
+            # Click Confirm button
+            WebDriverWait(self.driver, 5).until(EC.presence_of_all_elements_located((By.ID, confirm_button_id)))
+            self.driver.find_element(By.ID, confirm_button_id).click()
+
+        elif level == 25:
+            print('Your Dragon is fully trained!!')
+            # turn off auto_train
+            self.auto_dragontrain = False
+            # close special tab
+            # self.driver.execute_script('Game.ToggleSpecialMenu(0)')
+
+
+    def has_crumbly_egg(self):
+        crumbly_egg = False
+        res = self.driver.execute_script('return Game.Has("A crumbly egg")')
+        if res == 1:
+            crumbly_egg =True
+        return crumbly_egg
+
+
+    def level_up_dragon(self):
+        self.driver.execute_script('Game.UpgradeDragon()')
+
+
+    def get_amount_of_facility(self, name):
+        return [x['amount'] for x in self.facilities if x['name'] == name ][0]
+
+
 
     def click_while_buffend(self, end_time):
         while True:
@@ -374,6 +467,7 @@ class CookieClickerHelper:
         self.cookies_in_bank = int(self.driver.execute_script("""
             return Game.cookies
             """))
+
 
     def bulk_click(self, n):
         before = time.perf_counter()

@@ -2,14 +2,19 @@ Cookie Clicker helper
 
 on python IDLE
 ```
-from main import CookieClickerHelper
+from main import CookieClickerHelper as helper
 # if you have save data in click board
-h = CookieClickerHelper(save_data=True)
+h = helper(save_data=True)
 or
-h = CookieClickerHelper(True)
+h = helper(True)
 
-# you don't have save data
-h = CookieClickerHelper()
+# if you want to use auto granmapocalypse
+h = helper(auto_granmapocalypse=True)
+or
+h = helper((True | False) , True)
+
+# if you don't set any args, helper confirms options to you.
+h = helper()
 
 # check cps / billion
 h.rank() or player.rank3()
@@ -31,7 +36,5 @@ h.load_to_clip_board()
 
 ```
 TODO
-- improve auto
-    - Dragon train
-    - Grandmapocalypse
     - Pantheon
+    - season event
