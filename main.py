@@ -16,8 +16,10 @@ class CookieClickerHelper:
         driver = webdriver.Chrome()
         driver.get('https://orteil.dashnet.org/cookieclicker/')
         self.driver = driver
-        self.facilities = []
-        self.upgrades = []
+
+        self.auto_grandmapocalypse = False
+        self.pledge_time = None
+        self.auto_dragontrain =False
         
         # wait for big cookie load.
         WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.ID, 'bigCookie')))
@@ -48,11 +50,7 @@ class CookieClickerHelper:
             user_input = self.get_yn_from_user_input(msg)
         if auto_grandmapocalypse is True or user_input == 'y':
             self.auto_grandmapocalypse = True
-            # kill Wrinklers every 3 hours
-            self.pledge_duration = 60 * 60 * 3
-            self.set_pledge_time()
-        else:
-            self.auto_grandmapocalypse = False
+
 
         # Check auto_dragontrain
         # init user_input
@@ -62,18 +60,17 @@ class CookieClickerHelper:
             user_input = self.get_yn_from_user_input(msg)
         if auto_dragontrain is True or user_input == 'y':
             self.auto_dragontrain = True
-            # update facility data
-            self.update_facilities()
-        else:
-            self.auto_dragontrain = False
 
 
     def set_pledge_time(self):
+        # kill Wrinklers every 3 hours
+        pledge_duration = 60 * 60 * 3
+
         # if game has Elder Pact, so state is granmapocalypse
         has_elderPact = int(self.driver.execute_script('return Game.Has("Elder Pact")'))
 
         if has_elderPact == 1:
-            self.pledge_time = time.perf_counter() + self.pledge_duration
+            self.pledge_time = time.perf_counter() + pledge_duration
         else:
             self.pledge_time = None
 
@@ -121,7 +118,7 @@ class CookieClickerHelper:
             f.write(save_data)
 
 
-    def update_facilities(self):
+    def get_facilities(self):
         facilities = self.driver.execute_script("""
             return Game.ObjectsById.map(p => (
                 {
@@ -136,46 +133,53 @@ class CookieClickerHelper:
         for p in facilities:
             p['cost_perf'] = p['cps'] / p['price']
         facilities.sort(key=lambda x: x['cost_perf'], reverse=True)
-        self.facilities = facilities
+        return facilities
 
 
-    def update_upgrades(self):
+    def get_upgrades(self):
         upgrades = self.driver.execute_script("""
-            return Game.UpgradesById.map(u => (
-                {
-                    id:u.id,
-                    name: u.name,
-                    unlocked: u.unlocked,
-                    bought: u.bought,
-                    price: u.getPrice(),
-                    pool: u.pool,
-                }))
+            return Object.keys(Game.UpgradesById)
+                .map(i => Game.UpgradesById[i])
+                .map(u => (
+                    {
+                        id:u.id,
+                        name: u.name,
+                        unlocked: u.unlocked,
+                        bought: u.bought,
+                        price: u.getPrice(),
+                        pool: u.pool,
+                    }))
                 .filter(obj => obj.unlocked == 1)
                 .filter(obj => obj.bought == 0)
                 .filter(obj => obj.pool !== "toggle")
                 """)
         # for auto grandmapocalipse exclude tech from upgrades
         if self.auto_grandmapocalypse is False:
+            # exclude tech item from upgrades
             upgrades = [u for u in upgrades if u['pool'] != 'tech']
         
-        elif not self.pledge_time is None and self.pledge_time < time.perf_counter():
+        elif self.pledge_time is not None and self.pledge_time < time.perf_counter():
+            # pledge time is valid and over add elder pledge to upgrade,
+            # so purchese elder pledge 
             upgrades.append(self.get_elder_pledge())
 
         upgrades.sort(key=lambda u: u['price'])
-        self.upgrades = upgrades
+        return upgrades
 
 
     def get_elder_pledge(self):
         elder_pledge = self.driver.execute_script("""
-            return Game.UpgradesById.map(u => (
-                {
-                    id:u.id,
-                    name: u.name,
-                    unlocked: u.unlocked,
-                    bought: u.bought,
-                    price: u.getPrice(),
-                    pool: u.pool,
-                }))
+            return Object.keys(Game.UpgradesById)
+                .map(i => Game.UpgradesById[i])
+                .map(u => (
+                    {
+                        id:u.id,
+                        name: u.name,
+                        unlocked: u.unlocked,
+                        bought: u.bought,
+                        price: u.getPrice(),
+                        pool: u.pool,
+                    }))
                 .filter(obj => obj.unlocked == 1)
                 .filter(obj => obj.name === "Elder Pledge")
                 """)[0]
@@ -183,22 +187,27 @@ class CookieClickerHelper:
 
 
     def rank(self):
-        self.update_facilities()
-        for p in self.facilities:
+        facilities = self.get_facilities()
+        for p in facilities:
             print(f"{p['name']}:", f"{ '{:,.2f}'.format(p['cost_perf'] * 10 ** 9)} / Billion", sep='\t')
 
 
     def rank3(self):
-        self.update_facilities()
+        facilities = self.get_facilities()
         print('>>>> Best 3 <<<<<')
         cnt = 0
         for i in range(3):
-            p = self.facilities[i]
+            p = facilities[i]
             print(f"{i}:", p['name'],  f"{ '{:,.2f}'.format(p['cost_perf'] * 10 ** 9)} / Billion", sep='\t')
 
 
     def transform_readable_number(self, number):
         units = [
+            (1000000000000000000000000000000000000000000000000000000000000000000,'Unvigintillion'),
+            (1000000000000000000000000000000000000000000000000000000000000000,'Vigintillion'),
+            (1000000000000000000000000000000000000000000000000000000000000,'Novemdecillion'),
+            (1000000000000000000000000000000000000000000000000000000000,'octodecillion'),
+            (1000000000000000000000000000000000000000000000000000000,'septendecillion'),
             (1000000000000000000000000000000000000000000000000000,'Sexdecillion'),
             (1000000000000000000000000000000000000000000000000,'Quindecillion'),
             (1000000000000000000000000000000000000000000000,'Quattuordecillion'),
@@ -228,19 +237,19 @@ class CookieClickerHelper:
 
 
     def show_cps(self):
-        self.update_facilities()
-        self.facilities.sort(key=lambda x: x['id'])
-        for p in self.facilities:
+        facilities = self.get_facilities()
+        facilities.sort(key=lambda x: x['id'])
+        for p in facilities:
             p['cps'] = self.transform_readable_number(p['cps'])
                 
-        for p in self.facilities:
+        for p in facilities:
             print(f"{p['name']}:", f"{p['cps']}", sep='\t')
 
 
     def auto(self, seconds):
         end_time = time.perf_counter() + seconds
         
-        # save data loaded after initializing
+        # set pledge time
         if self.auto_grandmapocalypse is True and self.pledge_time is None:
             self.set_pledge_time()
         try:
@@ -254,25 +263,27 @@ class CookieClickerHelper:
                 # if buffed don't purchase
                 if self.is_buffed():
                     self.click_while_buffend(end_time)
-  
-                # update current cookie amount self.cookies_in_bank
-                self.update_cookies_in_bank()
                 
                 # get affordable item
                 item = self.get_affordable_item()
                 item_price = item['price']
 
                 # if can't buy, so collect cookies
-                if self.cookies_in_bank < item_price:
+                if self.get_cookies_in_bank() < item_price:
                     self.click_while_collect_or_endtime(item, end_time)
 
                 # if can buy Purchase item if endtime reached don't purchase
-                if self.cookies_in_bank >= item_price:
+                if self.get_cookies_in_bank() >= item_price:
                     self.purchase_item(item)
 
                 # check duration ends
-                if end_time - time.perf_counter() < 0:
-                    self.display_time(seconds, 'Complate')
+                current_height =  self.driver.get_window_size()['height']
+                remain_time = end_time - time.perf_counter()
+                if remain_time <= 0 or current_height <= 200:
+                    if remain_time<= 0:
+                        self.display_time(seconds, 'Complate')
+                    else:
+                        self.display_time(seconds - remain_time, 'Stopped', 'Clicked')
                     print()
                     break
         # if push ctrl + c end with save state to file 
@@ -282,22 +293,40 @@ class CookieClickerHelper:
     
 
     def train_dragon(self):
-        if not self.has_crumbly_egg():
-            return
+        def has_crumbly_egg():
+            # gema has crumbly egg so, Dragon is available
+            crumbly_egg = False
+            res = self.driver.execute_script('return Game.Has("A crumbly egg")')
+            if res == 1:
+                crumbly_egg =True
+            return crumbly_egg
         
+
+        def get_amount_of_facility(name):
+            facilities = self.get_facilities()
+            return [x['amount'] for x in facilities if x['name'] == name ][0]
+
+
+        def level_up_dragon():
+            self.driver.execute_script('Game.UpgradeDragon()')
+
+        # check dragon training is enable
+        if not has_crumbly_egg():
+            return
+
         # display dragon tooltip(special tab)
         self.driver.execute_script('Game.specialTab = "dragon"')
 
         confirm_button_id = 'promptOption0'
         level = int(self.driver.execute_script('return Game.dragonLevel'))
-        number_of_prism = self.get_amount_of_facility('Prism')
-        number_of_ideleverse = self.get_amount_of_facility('Idleverse')
+        number_of_prism = get_amount_of_facility('Prism')
+        number_of_ideleverse = get_amount_of_facility('Idleverse')
 
         if level <= 3:
-            self.level_up_dragon()
+            level_up_dragon()
 
         elif level == 4:
-            self.level_up_dragon()
+            level_up_dragon()
             # set DragonAura 1 ( 'Breath of Milk') to 0 (slot 1)
             self.driver.execute_script('Game.SetDragonAura(1, 0)')
             # Click Confirm button
@@ -305,10 +334,10 @@ class CookieClickerHelper:
             self.driver.find_element(By.ID, confirm_button_id).click()
             
         elif level <= 17 and number_of_prism >= 100:
-            self.level_up_dragon()
+            level_up_dragon()
 
         elif level == 18 and number_of_prism >= 100:
-            self.level_up_dragon()
+            level_up_dragon()
             
             # set DragonAura 15 ("Radiant Appetite") to 0 (slot 1)
             self.driver.execute_script('Game.SetDragonAura(15, 0)')
@@ -317,10 +346,10 @@ class CookieClickerHelper:
             self.driver.find_element(By.ID, confirm_button_id).click()
 
         elif level <= 23 and number_of_ideleverse >= 200:
-            self.level_up_dragon()
+            level_up_dragon()
 
         elif level == 24 and number_of_ideleverse >= 200:
-            self.level_up_dragon()
+            level_up_dragon()
 
             # set DragonAura, 1 ('Breath of Milk') to 1 (slot 2)
             self.driver.execute_script('Game.SetDragonAura(1, 1)')
@@ -334,23 +363,6 @@ class CookieClickerHelper:
             self.auto_dragontrain = False
             # close special tab
             # self.driver.execute_script('Game.ToggleSpecialMenu(0)')
-
-
-    def has_crumbly_egg(self):
-        crumbly_egg = False
-        res = self.driver.execute_script('return Game.Has("A crumbly egg")')
-        if res == 1:
-            crumbly_egg =True
-        return crumbly_egg
-
-
-    def level_up_dragon(self):
-        self.driver.execute_script('Game.UpgradeDragon()')
-
-
-    def get_amount_of_facility(self, name):
-        return [x['amount'] for x in self.facilities if x['name'] == name ][0]
-
 
 
     def click_while_buffend(self, end_time):
@@ -378,15 +390,15 @@ class CookieClickerHelper:
 
     def get_affordable_item(self):
         # get current facilities and upgrades
-        self.update_facilities()
-        self.update_upgrades()
+        facilities = self.get_facilities()
+        upgrades = self.get_upgrades()
 
         # if there are upgrades
-        if len(self.upgrades) > 0 and self.upgrades[0]['price'] < self.facilities[0]['price']:
-            item = self.upgrades[0]
+        if len(upgrades) > 0 and upgrades[0]['price'] < facilities[0]['price']:
+            item = upgrades[0]
             item['type'] = 'upgrade'
         else:
-            item = self.facilities[0]
+            item = facilities[0]
             item['type'] = 'facility'
         
         item['display_price'] = self.transform_readable_number(item['price'])
@@ -396,15 +408,20 @@ class CookieClickerHelper:
 
     def click_while_collect_or_endtime(self, item, end_time):
         while True:
+            # if big cookie is hidden end loop
+            if not self.big_cookie.is_displayed():
+                break
+
             # display remain time
             remain_seconds = int(end_time - time.perf_counter())
             self.display_time(remain_seconds, 'Remain', f"Collect for {item['name']} / {item['display_price']}")
 
-            #click big cookies
-            try:
-                self.big_cookie.click()
-            except ElementClickInterceptedException as e:
-                pass
+            #click big cookies 10 times
+            for _ in range(100):
+                try:
+                    self.big_cookie.click()
+                except ElementClickInterceptedException as e:
+                    pass
 
             #Check Golden Cookie
             self.click_shimmers_if_exist()
@@ -412,11 +429,9 @@ class CookieClickerHelper:
             # cast conjer baked cookies if mp max
             self.cast_spell_if_mp_max()
 
-            # get current cookie amount
-            self.update_cookies_in_bank()
-
-            #check can buy and remain_seconds
-            if self.cookies_in_bank >= item['price'] or remain_seconds < 0:
+            #check can buy or time or current_htight is less than 200px
+            current_height =  self.driver.get_window_size()['height']
+            if self.get_cookies_in_bank() >= item['price'] or remain_seconds <= 0 or current_height < 200:
                 print()
                 break
     
@@ -438,7 +453,7 @@ class CookieClickerHelper:
 
             # if success purchase and item name is Elder Pact or Elder Pledge set pledge time
             if item['name'] in ['Elder Pact', 'Elder Pledge']:
-                self.pledge_time = time.perf_counter()  + self.pledge_duration
+                self.set_pledge_time()
         except Exception as e:
             print(e)
 
@@ -446,7 +461,7 @@ class CookieClickerHelper:
     def display_time(self, seconds, type, msg=''):
         hour, mod_seconds = divmod(seconds, 60 * 60)
         minu, sec = divmod(mod_seconds, 60)
-        print(f"\r{type}: {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str(sec).zfill(2)} sec.  : {msg}", end='')
+        print(f"\r{type}: {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str('{:.0f}'.format(sec)).zfill(2)} sec.  : {msg}", end='')
 
 
     def is_buffed(self):
@@ -458,17 +473,18 @@ class CookieClickerHelper:
             try:
                 mouse_over = buff.get_attribute("onmouseover")
                 # buff40 is clot 
-                if not 'Clot' in mouse_over:
+                if not ('Clot' in mouse_over or 'Loan' in mouse_over):
                     buffed = True
             except StaleElementReferenceException as e:
                 pass
         return buffed
 
 
-    def update_cookies_in_bank(self):
-        self.cookies_in_bank = int(self.driver.execute_script("""
+    def get_cookies_in_bank(self):
+        cookies_in_bank = int(self.driver.execute_script("""
             return Game.cookies
             """))
+        return cookies_in_bank
 
 
     def bulk_click(self, n):
@@ -499,10 +515,15 @@ class CookieClickerHelper:
                 # cast conjer baked cookies if mp max
                 self.cast_spell_if_mp_max()
                 
-                if remain_seconds <= 0:
-                    self.display_time(n, 'Complete', 'Clicked')
+                current_height =  self.driver.get_window_size()['height']
+                if remain_seconds <= 0 or current_height <= 200:
+                    if remain_seconds <= 0:
+                        self.display_time(n, 'Complete', 'Clicked')
+                    else:
+                        self.display_time(n - remain_seconds, 'Stopped', 'Clicked')
                     print()
                     break
+
         except KeyboardInterrupt:
             self.save_to_file()
             print('[ctrl + C] has pushed. save data to file!')
