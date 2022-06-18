@@ -19,7 +19,7 @@ class CookieClickerHelper:
 
         self.auto_grandmapocalypse = False
         self.pledge_time = None
-        self.auto_dragontrain =False
+        self.auto_dragontrain = False
         
         # wait for big cookie load.
         WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.ID, 'bigCookie')))
@@ -65,7 +65,7 @@ class CookieClickerHelper:
     def set_pledge_time(self):
         # kill Wrinklers every 3 hours
         pledge_duration = 60 * 60 * 3
-
+        
         # if game has Elder Pact, so state is granmapocalypse
         has_elderPact = int(self.driver.execute_script('return Game.Has("Elder Pact")'))
 
@@ -279,7 +279,7 @@ class CookieClickerHelper:
                 # check duration ends
                 current_height =  self.driver.get_window_size()['height']
                 remain_time = end_time - time.perf_counter()
-                if remain_time <= 0 or current_height <= 200:
+                if remain_time <= 0 or current_height <= 300:
                     if remain_time<= 0:
                         self.display_time(seconds, 'Complate')
                     else:
@@ -380,6 +380,9 @@ class CookieClickerHelper:
             #Check Golden Cookie
             self.click_shimmers_if_exist()
 
+            #Check fortune Cookie
+            self.click_fortuneCookie_if_exist()
+
             # cast conjer baked cookies if mp max
             self.cast_spell_if_mp_max()
 
@@ -407,11 +410,8 @@ class CookieClickerHelper:
 
 
     def click_while_collect_or_endtime(self, item, end_time):
+        cnt = 0
         while True:
-            # if big cookie is hidden end loop
-            if not self.big_cookie.is_displayed():
-                break
-
             # display remain time
             remain_seconds = int(end_time - time.perf_counter())
             self.display_time(remain_seconds, 'Remain', f"Collect for {item['name']} / {item['display_price']}")
@@ -426,14 +426,30 @@ class CookieClickerHelper:
             #Check Golden Cookie
             self.click_shimmers_if_exist()
 
+            #Check fortune Cookie
+            self.click_fortuneCookie_if_exist()
+
             # cast conjer baked cookies if mp max
             self.cast_spell_if_mp_max()
 
-            #check can buy or time or current_htight is less than 200px
+            # if cnt over 100 and do not have time
+            if cnt >= 100:
+                if self.pledge_time is not None and self.pledge_time <= time.perf_counter():
+                    print()
+                    break
+
+            # current_height is less than 300px or more affordable item is appier
             current_height =  self.driver.get_window_size()['height']
-            if self.get_cookies_in_bank() >= item['price'] or remain_seconds <= 0 or current_height < 200:
+            if current_height <= 300 or self.get_affordable_item()['name'] != item['name']:
+                print ()
+                break
+
+            #check can buy or time
+            if self.get_cookies_in_bank() >= item['price'] or remain_seconds <= 0:
                 print()
                 break
+
+            cnt += 1
     
 
     def purchase_item(self, item):
@@ -461,7 +477,7 @@ class CookieClickerHelper:
     def display_time(self, seconds, type, msg=''):
         hour, mod_seconds = divmod(seconds, 60 * 60)
         minu, sec = divmod(mod_seconds, 60)
-        print(f"\r{type}: {str(hour).zfill(2)} hour {str(minu).zfill(2)} min {str('{:.0f}'.format(sec)).zfill(2)} sec.  : {msg}", end='')
+        print(f"\r{type}: {str('{:.0f}'.format(hour)).zfill(2)} hour {str('{:.0f}'.format(minu)).zfill(2)} min {str('{:.0f}'.format(sec)).zfill(2)} sec.  : {msg}", end='')
 
 
     def is_buffed(self):
@@ -512,11 +528,14 @@ class CookieClickerHelper:
                 # Golden Cookie
                 self.click_shimmers_if_exist()
 
+                #Check fortune Cookie
+                self.click_fortuneCookie_if_exist()
+
                 # cast conjer baked cookies if mp max
                 self.cast_spell_if_mp_max()
                 
                 current_height =  self.driver.get_window_size()['height']
-                if remain_seconds <= 0 or current_height <= 200:
+                if remain_seconds <= 0 or current_height <= 300:
                     if remain_seconds <= 0:
                         self.display_time(n, 'Complete', 'Clicked')
                     else:
@@ -545,6 +564,14 @@ class CookieClickerHelper:
                 pass
             except StaleElementReferenceException as e:
                 pass
+
+
+    def click_fortuneCookie_if_exist(self):
+        fortuneCookie = self.driver.execute_script('return Game.TickerEffect && Game.TickerEffect.type=="fortune"')
+
+        if fortuneCookie is True:
+            tickerL = self.driver.find_element_by_id('commentsText1')
+            tickerL.click()
 
 
     def cast_spell_if_mp_max(self):
