@@ -2,6 +2,7 @@ import time
 from datetime import datetime as dt
 
 from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import ElementNotInteractableException
 from selenium.common.exceptions import StaleElementReferenceException
@@ -13,26 +14,13 @@ import pyperclip
 
 class CookieClickerHelper:
     def __init__(self, save_data=None, auto_grandmapocalypse=None, auto_dragontrain=None):
-        driver = webdriver.Chrome()
+        driver = webdriver.Chrome(ChromeDriverManager().install())
         driver.get('https://orteil.dashnet.org/cookieclicker/')
         self.driver = driver
 
         self.auto_grandmapocalypse = False
         self.pledge_time = None
         self.auto_dragontrain = False
-        
-        # wait for big cookie load.
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.ID, 'bigCookie')))
-        self.big_cookie = self.driver.find_element(By.ID, 'bigCookie')
-        
-        time.sleep(2)
-        # hide ad
-        self.driver.execute_script('document.getElementById("smallSupport").remove()')
-
-        # Click accept cookie button
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[1]/div/a[1]')))
-        time.sleep(2)
-        self.driver.find_element(By.XPATH, '/html/body/div[1]/div/a[1]').click()
 
         # load save data from clipboard
         user_input = ''
@@ -60,6 +48,19 @@ class CookieClickerHelper:
             user_input = self.get_yn_from_user_input(msg)
         if auto_dragontrain is True or user_input == 'y':
             self.auto_dragontrain = True
+        
+        # wait for big cookie load.
+        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.ID, 'bigCookie')))
+        self.big_cookie = self.driver.find_element(By.ID, 'bigCookie')
+        
+        time.sleep(2)
+        # hide ad
+        self.driver.execute_script('document.getElementById("smallSupport").remove()')
+
+        # Click accept cookie button
+        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.XPATH, '/html/body/div[1]/div/a[1]')))
+        time.sleep(2)
+        self.driver.find_element(By.XPATH, '/html/body/div[1]/div/a[1]').click()
 
 
     def set_pledge_time(self):
@@ -432,15 +433,14 @@ class CookieClickerHelper:
             # cast conjer baked cookies if mp max
             self.cast_spell_if_mp_max()
 
-            # if cnt over 100 and do not have time
-            if cnt >= 100:
-                if self.pledge_time is not None and self.pledge_time <= time.perf_counter():
-                    print()
-                    break
+            # if buffed break            
+            if self.is_buffed():
+                print()
+                break
 
-            # current_height is less than 300px or more affordable item is appier
+            # current_height is less than 300px
             current_height =  self.driver.get_window_size()['height']
-            if current_height <= 300 or self.get_affordable_item()['name'] != item['name']:
+            if current_height <= 300:
                 print ()
                 break
 
@@ -449,7 +449,22 @@ class CookieClickerHelper:
                 print()
                 break
 
-            cnt += 1
+            # if cnt over 100
+            if cnt >= 100:
+                # Clear counter
+                cnt = 0
+                
+                # and predge_time is over
+                if self.pledge_time is not None and self.pledge_time <= time.perf_counter():
+                    print()
+                    break
+                
+                # if there is more affordable item is appier
+                if self.get_affordable_item()['name'] != item['name']:
+                    print()
+                    break
+            else:
+                cnt += 1
     
 
     def purchase_item(self, item):
